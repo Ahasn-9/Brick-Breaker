@@ -9,12 +9,14 @@ const BreakoutBricks = () => {
     paddle: {
       x: 300,
       y: 580,
-      w: 200,
+      w: 150,
       h: 10,
+      speed: 8,
+      dx: 0,
       visible: true,
     },
     ball: {
-      x: 400, // Centered above paddle
+      x: 375, // Centered above paddle
       y: 570,
       size: 10,
       visible: true,
@@ -91,6 +93,20 @@ const BreakoutBricks = () => {
       });
     };
 
+    const movePaddle = () => {
+      state.paddle.x += state.paddle.dx;
+
+      if (state.paddle.x + state.paddle.w > canvas.width) {
+        state.paddle.x = canvas.width - state.paddle.w;
+      }
+      if (state.paddle.x < 0) {
+        state.paddle.x = 0;
+      }
+
+      // Update ball position to follow paddle center
+      state.ball.x = state.paddle.x + state.paddle.w / 2;
+    };
+
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground();
@@ -99,7 +115,35 @@ const BreakoutBricks = () => {
       drawBall();
     };
 
-    draw();
+    const gameLoop = () => {
+      movePaddle();
+      draw();
+      requestAnimationFrame(gameLoop);
+    };
+
+    gameLoop();
+
+    const keyDown = (e) => {
+      if (e.key === 'ArrowRight') {
+        state.paddle.dx = state.paddle.speed;
+      } else if (e.key === 'ArrowLeft') {
+        state.paddle.dx = -state.paddle.speed;
+      }
+    };
+
+    const keyUp = (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        state.paddle.dx = 0;
+      }
+    };
+
+    document.addEventListener('keydown', keyDown);
+    document.addEventListener('keyup', keyUp);
+
+    return () => {
+      document.removeEventListener('keydown', keyDown);
+      document.removeEventListener('keyup', keyUp);
+    };
   }, [initializeBricks]);
 
   return (
