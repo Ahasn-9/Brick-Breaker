@@ -14,12 +14,13 @@ const BreakoutGame = () => {
       dx: 4,
       dy: -4,
       visible: true,
+      trail: [], // For ball trail effect
     },
     paddle: {
       x: 0,
       y: 0,
-      w: 150,
-      h: 10,
+      w: 120, // Slightly smaller for better aesthetics
+      h: 15,
       speed: 8,
       dx: 0,
       visible: true,
@@ -36,16 +37,16 @@ const BreakoutGame = () => {
     state.ball.visible = true;
     state.ball.dx = 4;
     state.ball.dy = -4;
+    state.ball.trail = [];
 
-    // Only reset paddle position if the game is not already started
     if (!gameStarted) {
       state.paddle.x = canvas.width / 2 - state.paddle.w / 2;
-      state.paddle.y = canvas.height - 20;
+      state.paddle.y = canvas.height - 30; // Adjusted for better spacing
     }
     state.paddle.dx = 0;
     state.paddle.visible = true;
 
-    // Reset bricks
+    // Reset bricks with color variation
     const brickRowCount = 9;
     const brickColumnCount = 5;
     const brickInfo = {
@@ -53,7 +54,7 @@ const BreakoutGame = () => {
       h: 20,
       padding: 10,
       offsetX: 45,
-      offsetY: 50,
+      offsetY: 60,
       visible: true,
     };
 
@@ -63,10 +64,12 @@ const BreakoutGame = () => {
       for (let j = 0; j < brickColumnCount; j++) {
         const x = i * (brickInfo.w + brickInfo.padding) + brickInfo.offsetX;
         const y = j * (brickInfo.h + brickInfo.padding) + brickInfo.offsetY;
-        state.bricks[i][j] = { x, y, ...brickInfo };
+        // Assign color based on row for gradient effect
+        const hue = 360 - (j * 60); // Vary hue from red to purple
+        state.bricks[i][j] = { x, y, ...brickInfo, color: `hsl(${hue}, 70%, 50%)` };
       }
     }
-  }, [gameStarted]); // Add gameStarted as a dependency
+  }, [gameStarted]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -75,37 +78,84 @@ const BreakoutGame = () => {
 
     resetGame();
 
+    const drawBackground = () => {
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#1e3a8a'); // Dark blue
+      gradient.addColorStop(1, '#3b82f6'); // Light blue
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    };
+
     const drawBall = () => {
+      // Draw trail
+      state.ball.trail.forEach((pos, index) => {
+        const alpha = 0.3 * (1 - index / state.ball.trail.length);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, state.ball.size * (0.8 + 0.2 * (1 - index / state.ball.trail.length)), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fill();
+        ctx.closePath();
+      });
+
+      // Draw ball
+      const gradient = ctx.createRadialGradient(state.ball.x, state.ball.y, 2, state.ball.x, state.ball.y, state.ball.size);
+      gradient.addColorStop(0, '#ffffff');
+      gradient.addColorStop(1, '#3b82f6');
       ctx.beginPath();
       ctx.arc(state.ball.x, state.ball.y, state.ball.size, 0, Math.PI * 2);
-      ctx.fillStyle = state.ball.visible ? '#0095dd' : 'transparent';
+      ctx.fillStyle = state.ball.visible ? gradient : 'transparent';
       ctx.fill();
+      ctx.shadowColor = '#3b82f6';
+      ctx.shadowBlur = 10;
       ctx.closePath();
+
+      // Update trail
+      if (gameStarted) {
+        state.ball.trail.unshift({ x: state.ball.x, y: state.ball.y });
+        if (state.ball.trail.length > 5) state.ball.trail.pop();
+      }
     };
 
     const drawPaddle = () => {
       ctx.beginPath();
-      ctx.rect(state.paddle.x, state.paddle.y, state.paddle.w, state.paddle.h);
-      ctx.fillStyle = state.paddle.visible ? '#0095dd' : 'transparent';
+      ctx.roundRect(state.paddle.x, state.paddle.y, state.paddle.w, state.paddle.h, 10);
+      const gradient = ctx.createLinearGradient(state.paddle.x, state.paddle.y, state.paddle.x, state.paddle.y + state.paddle.h);
+      gradient.addColorStop(0, '#10b981');
+      gradient.addColorStop(1, '#059669');
+      ctx.fillStyle = state.paddle.visible ? gradient : 'transparent';
       ctx.fill();
+      ctx.shadowColor = '#10b981';
+      ctx.shadowBlur = 15;
       ctx.closePath();
     };
 
     const drawScore = () => {
-      ctx.font = '20px Arial';
-      ctx.fillText(`Score: ${state.score}`, canvas.width - 100, 30);
+      ctx.font = 'bold 24px "Roboto", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#000000';
+      ctx.shadowBlur = 5;
+      ctx.fillText(`Score: ${state.score}`, canvas.width - 120, 40);
+      ctx.shadowBlur = 0;
     };
 
     const drawBricks = () => {
       state.bricks.forEach((column) => {
         column.forEach((brick) => {
-          ctx.beginPath();
-          ctx.rect(brick.x, brick.y, brick.w, brick.h);
-          ctx.fillStyle = brick.visible ? '#0095dd' : 'transparent';
-          ctx.fill();
-          ctx.closePath();
+          if (brick.visible) {
+            ctx.beginPath();
+            ctx.roundRect(brick.x, brick.y, brick.w, brick.h, 5);
+            ctx.fillStyle = brick.color;
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.shadowColor = '#000000';
+            ctx.shadowBlur = 5;
+            ctx.closePath();
+          }
         });
       });
+      ctx.shadowBlur = 0;
     };
 
     const movePaddle = () => {
@@ -183,16 +233,20 @@ const BreakoutGame = () => {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawBall();
-      drawPaddle();
-      drawScore();
+      drawBackground();
       drawBricks();
+      drawPaddle();
+      drawBall();
+      drawScore();
 
       if (!gameStarted) {
-        ctx.font = '20px Arial';
-        ctx.fillStyle = '#000';
+        ctx.font = 'bold 28px "Roboto", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#000000';
+        ctx.shadowBlur = 5;
         ctx.textAlign = 'center';
         ctx.fillText('Press SPACE to Start', canvas.width / 2, canvas.height / 2);
+        ctx.shadowBlur = 0;
       }
     };
 
@@ -241,30 +295,35 @@ const BreakoutGame = () => {
   }, [gameStarted, resetGame]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-blue-500 relative">
-      <h1 className="text-white text-4xl mb-4">Breakout!</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-900 to-blue-600 relative">
+      <h1 className="text-5xl font-bold text-white mb-6 drop-shadow-lg">Breakout!</h1>
       <button
         onClick={() => setShowRules(true)}
-        className="btn absolute top-8 left-8 bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
+        className="absolute top-4 left-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-6 py-3 rounded-lg shadow-lg hover:from-purple-600 hover:to-indigo-600 transition-all duration-300"
       >
         Show Rules
       </button>
       {showRules && (
-        <div className="absolute top-0 left-0 bg-gray-800 text-white h-full w-96 p-5 transform transition-transform duration-1000 ease-in-out z-10">
-          <h2 className="text-xl mb-2">How To Play:</h2>
-          <p className="mb-2">
-            Use your right and left keys to move the paddle to bounce the ball up and break the blocks.
+        <div className="absolute top-0 left-0 bg-gray-900 text-white w-80 p-6 rounded-r-lg shadow-2xl transform transition-transform duration-500 ease-in-out translate-x-0 z-20">
+          <h2 className="text-2xl font-bold mb-3">How To Play</h2>
+          <p className="mb-3 text-gray-200">
+            Use the left and right arrow keys to move the paddle and bounce the ball to break the bricks.
           </p>
-          <p className="mb-4">If you miss the ball, your score and the blocks will reset.</p>
+          <p className="mb-4 text-gray-200">Missing the ball resets the game and score.</p>
           <button
             onClick={() => setShowRules(false)}
-            className="btn bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
+            className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-300"
           >
             Close
           </button>
         </div>
       )}
-      <canvas ref={canvasRef} width="800" height="600" className="bg-gray-200 rounded"></canvas>
+      <canvas
+        ref={canvasRef}
+        width="800"
+        height="600"
+        className="rounded-xl shadow-2xl border-2 border-blue-300 bg-gray-800"
+      ></canvas>
     </div>
   );
 };
