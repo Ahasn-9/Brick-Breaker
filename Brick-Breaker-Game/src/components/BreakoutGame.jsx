@@ -15,11 +15,13 @@ const BreakoutGame = () => {
       dy: -4,
       visible: true,
       trail: [], // For ball trail effect
+      pulse: 0, // For pulsing effect
+      particles: [], // For collision particles
     },
     paddle: {
       x: 0,
       y: 0,
-      w: 120, // Slightly smaller for better aesthetics
+      w: 120,
       h: 15,
       speed: 8,
       dx: 0,
@@ -38,15 +40,16 @@ const BreakoutGame = () => {
     state.ball.dx = 4;
     state.ball.dy = -4;
     state.ball.trail = [];
+    state.ball.pulse = 0;
+    state.ball.particles = [];
 
     if (!gameStarted) {
       state.paddle.x = canvas.width / 2 - state.paddle.w / 2;
-      state.paddle.y = canvas.height - 30; // Adjusted for better spacing
+      state.paddle.y = canvas.height - 30;
     }
     state.paddle.dx = 0;
     state.paddle.visible = true;
 
-    // Reset bricks with color variation
     const brickRowCount = 9;
     const brickColumnCount = 5;
     const brickInfo = {
@@ -64,8 +67,7 @@ const BreakoutGame = () => {
       for (let j = 0; j < brickColumnCount; j++) {
         const x = i * (brickInfo.w + brickInfo.padding) + brickInfo.offsetX;
         const y = j * (brickInfo.h + brickInfo.padding) + brickInfo.offsetY;
-        // Assign color based on row for gradient effect
-        const hue = 360 - (j * 60); // Vary hue from red to purple
+        const hue = 360 - (j * 60);
         state.bricks[i][j] = { x, y, ...brickInfo, color: `hsl(${hue}, 70%, 50%)` };
       }
     }
@@ -80,40 +82,56 @@ const BreakoutGame = () => {
 
     const drawBackground = () => {
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, '#1e3a8a'); // Dark blue
-      gradient.addColorStop(1, '#3b82f6'); // Light blue
+      gradient.addColorStop(0, '#1e3a8a');
+      gradient.addColorStop(1, '#3b82f6');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     };
 
     const drawBall = () => {
+      // Update pulse for size animation
+      state.ball.pulse += 0.1;
+      const pulseSize = state.ball.size + Math.sin(state.ball.pulse) * 2;
+
       // Draw trail
       state.ball.trail.forEach((pos, index) => {
-        const alpha = 0.3 * (1 - index / state.ball.trail.length);
+        const alpha = 0.5 * (1 - index / state.ball.trail.length);
+        const trailSize = pulseSize * (0.7 + 0.3 * (1 - index / state.ball.trail.length));
+        const gradient = ctx.createRadialGradient(pos.x, pos.y, 1, pos.x, pos.y, trailSize);
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+        gradient.addColorStop(1, `rgba(59, 130, 246, ${alpha * 0.5})`);
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, state.ball.size * (0.8 + 0.2 * (1 - index / state.ball.trail.length)), 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.arc(pos.x, pos.y, trailSize, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
         ctx.fill();
         ctx.closePath();
       });
 
+      // Draw particles
+      state.ball.particles = state.ball.particles.filter(p => p.life > 0);
+      state.ball.particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.life / 20})`;
+        ctx.fill();
+        ctx.closePath();
+        p.x += p.dx;
+        p.y += p.dy;
+        p.life -= 1;
+      });
+
       // Draw ball
-      const gradient = ctx.createRadialGradient(state.ball.x, state.ball.y, 2, state.ball.x, state.ball.y, state.ball.size);
+      const gradient = ctx.createRadialGradient(state.ball.x, state.ball.y, 2, state.ball.x, state.ball.y, pulseSize);
       gradient.addColorStop(0, '#ffffff');
+      gradient.addColorStop(0.4, '#facc15'); // Yellow for vibrancy
       gradient.addColorStop(1, '#3b82f6');
       ctx.beginPath();
-      ctx.arc(state.ball.x, state.ball.y, state.ball.size, 0, Math.PI * 2);
+      ctx.arc(state.ball.x, state.ball.y, pulseSize, 0, Math.PI * 2);
       ctx.fillStyle = state.ball.visible ? gradient : 'transparent';
       ctx.fill();
-      ctx.shadowColor = '#3b82f6';
-      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#facc15';
+      ctx.shadowBlur = 15;
       ctx.closePath();
-
-      // Update trail
-      if (gameStarted) {
-        state.ball.trail.unshift({ x: state.ball.x, y: state.ball.y });
-        if (state.ball.trail.length > 5) state.ball.trail.pop();
-      }
     };
 
     const drawPaddle = () => {
@@ -158,6 +176,19 @@ const BreakoutGame = () => {
       ctx.shadowBlur = 0;
     };
 
+    const spawnParticles = (x, y) => {
+      for (let i = 0; i < 5; i++) {
+        state.ball.particles.push({
+          x,
+          y,
+          size: Math.random() * 3 + 2,
+          dx: (Math.random() - 0.5) * 4,
+          dy: (Math.random() - 0.5) * 4,
+          life: 20,
+        });
+      }
+    };
+
     const movePaddle = () => {
       state.paddle.x += state.paddle.dx;
 
@@ -185,10 +216,12 @@ const BreakoutGame = () => {
 
       if (state.ball.x + state.ball.size > canvas.width || state.ball.x - state.ball.size < 0) {
         state.ball.dx *= -1;
+        spawnParticles(state.ball.x, state.ball.y);
       }
 
       if (state.ball.y - state.ball.size < 0) {
         state.ball.dy *= -1;
+        spawnParticles(state.ball.x, state.ball.y);
       }
 
       if (
@@ -197,6 +230,7 @@ const BreakoutGame = () => {
         state.ball.y + state.ball.size > state.paddle.y
       ) {
         state.ball.dy = -state.ball.speed;
+        spawnParticles(state.ball.x, state.paddle.y);
       }
 
       state.bricks.forEach((column) => {
@@ -211,6 +245,7 @@ const BreakoutGame = () => {
               state.ball.dy *= -1;
               brick.visible = false;
               state.score++;
+              spawnParticles(state.ball.x, state.ball.y);
 
               if (state.score % (state.bricks.length * state.bricks[0].length) === 0) {
                 state.ball.visible = false;
