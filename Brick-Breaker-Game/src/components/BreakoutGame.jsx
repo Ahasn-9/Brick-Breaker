@@ -292,42 +292,42 @@ const BreakoutGame = () => {
   }, [gameStarted, resetGame, showNamePopup, playerName]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-blue-500 relative">
-      <h1 className="text-white text-4xl mb-4">Breakout!</h1>
-      <div className="flex gap-8">
-        <div className="relative">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-400 to-purple-600 py-8">
+      <h1 className="text-white text-4xl mb-8 font-bold drop-shadow-lg">Breakout!</h1>
+      <div className="flex flex-col lg:flex-row gap-8 p-4">
+        <div className="relative bg-gray-800 rounded-lg shadow-xl overflow-hidden">
           <button
             onClick={() => setShowRules(true)}
-            className="btn absolute top-8 left-8 bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
+            className="absolute top-4 left-4 bg-gray-700 text-white text-sm px-3 py-1 rounded hover:bg-gray-600 transition-colors duration-200 z-10"
           >
             Show Rules
           </button>
           {showRules && (
-            <div className="absolute top-0 left-0 bg-gray-800 text-white h-full w-96 p-5 transform transition-transform duration-1000 ease-in-out z-10">
-              <h2 className="text-xl mb-2">How To Play:</h2>
-              <p className="mb-2">
-                Use your right and left keys to move the paddle to bounce the ball up and break the blocks.
+            <div className="absolute inset-0 bg-gray-900 text-white p-8 transform transition-transform duration-300 ease-in-out z-20 overflow-y-auto">
+              <h2 className="text-2xl font-bold mb-4 border-b border-gray-600 pb-2">How To Play:</h2>
+              <p className="mb-4 text-lg leading-relaxed">
+                Use your <span className="font-bold text-yellow-400">right</span> and <span className="font-bold text-yellow-400">left</span> arrow keys to move the paddle. Your goal is to bounce the ball up and break all the blocks.
               </p>
-              <p className="mb-4">If you miss the ball, your score and the blocks will reset.</p>
+              <p className="mb-6 text-lg leading-relaxed">If you miss the ball and it goes off the bottom of the screen, your score and the blocks will reset, ending the current game.</p>
               <button
                 onClick={() => setShowRules(false)}
-                className="btn bg-black text-white px-4 py-2 rounded hover:bg-gray-800"
+                className="mt-4 bg-blue-600 text-white text-lg px-6 py-2 rounded hover:bg-blue-700 transition-colors duration-200"
               >
                 Close
               </button>
             </div>
           )}
-          <canvas ref={canvasRef} width="800" height="600" className="bg-gray-200 rounded"></canvas>
+          <canvas ref={canvasRef} width="800" height="600" className="bg-gray-200 rounded-lg shadow-inner"></canvas>
         </div>
         <HighScoreBoard />
       </div>
       {showNamePopup && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 z-20">
-          <div className="bg-white p-8 rounded shadow-lg flex flex-col items-center">
-            <h2 className="text-2xl mb-4">Enter Your Name</h2>
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
+          <div className="bg-white p-8 rounded-xl shadow-2xl flex flex-col items-center transform scale-105">
+            <h2 className="text-3xl font-bold mb-6 text-gray-800">Enter Your Name</h2>
             <input
               type="text"
-              className="border p-2 rounded mb-4 text-black"
+              className="border border-gray-400 p-3 rounded-lg mb-6 text-gray-800 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Your name"
               value={nameInput}
               onChange={e => setNameInput(e.target.value)}
@@ -340,7 +340,7 @@ const BreakoutGame = () => {
               autoFocus
             />
             <button
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700"
+              className="bg-green-500 text-white text-xl px-8 py-3 rounded-lg hover:bg-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!nameInput.trim()}
               onClick={() => {
                 savePlayerName(nameInput.trim());
